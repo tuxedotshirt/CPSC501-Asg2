@@ -38,7 +38,7 @@ public class Driver {
         } catch (IOException ioe) {
             System.err.println("Unable to open file: " + filename);
         } catch (Exception e) {
-            System.err.println("Unable to compleatly run test: " + testObj);
+            System.err.println("Unable to completely run test: " + testObj);
             e.printStackTrace();
         }
     }
