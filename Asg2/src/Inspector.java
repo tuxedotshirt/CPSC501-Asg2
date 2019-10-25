@@ -1,17 +1,21 @@
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 
+import sun.misc.Unsafe;
+
 public class Inspector {
 
     public void inspect(Object obj, boolean recursive) {
-        Class c = obj.getClass();
+        Class<? extends Object> c = obj.getClass();
         inspectClass(c, obj, recursive, 0);
     }
 
-    private void inspectClass(Class c, Object obj, boolean recursive, int depth) {
+    private void inspectClass(Class<?> c, Object obj, boolean recursive, int depth) {
+    	disableWarning();
     	//tabDepth for formatting output
     	int tabDepth = depth;
     	
@@ -41,13 +45,24 @@ public class Inspector {
 		//6
 		fieldInspector(obj, objClass, objectList, tabDepth+1);
 
+		//6
+		recursiveInspector(obj, objClass, objectList, recursive, depth+1);
     }
 
     private void superclassInspector(Object obj, Class<?> objClass, ArrayList<Field> objectList, int depth) {
-    	
+    	System.out.println();
+		int tabDepth = depth;
+		formatOutput(tabDepth);
+		System.out.println("Superclass: " + objClass.getSuperclass().getSimpleName());
+		tabDepth++;
+		Class<?> superclass = objClass.getSuperclass();
+		methodInspector(obj, superclass, tabDepth);
+		constructorInspector(obj, superclass, tabDepth);
+		fieldInspector(obj, superclass, new ArrayList<Field>(), tabDepth);    	
     }
     
-    private void interfaceInspector(Object obj, Class<?> objClass, int depth) {
+    @SuppressWarnings("rawtypes")
+	private void interfaceInspector(Object obj, Class<?> objClass, int depth) {
     	int tabDepth = depth;
 		System.out.println();
 		formatOutput(tabDepth);
@@ -65,7 +80,8 @@ public class Inspector {
 		}   	
     }
 
-    private void constructorInspector(Object obj, Class<?> objClass, int depth) {
+    @SuppressWarnings("rawtypes")
+	private void constructorInspector(Object obj, Class<?> objClass, int depth) {
     	int tabDepth = depth;
 		System.out.println();
 		formatOutput(tabDepth);
@@ -85,9 +101,10 @@ public class Inspector {
 				System.out.println();
 				formatOutput(tabDepth+1);
 				
+				//Print name, parameters and modifiers for constructor
 				System.out.println("Constructor: " + constructorMethod.getName()
-						+ "\n\t-Parameters: " + paramString 
-						+ "\n\t-Modifiers: " + Modifier.toString(constructorMethod.getModifiers()));
+						+ "\n\t Parameters: " + paramString 
+						+ "\n\t Modifiers: " + Modifier.toString(constructorMethod.getModifiers()));
 			}
 		}     	
     }
@@ -105,12 +122,13 @@ public class Inspector {
 				String params = getMethodParameters(method);
 				String except = getMethodExceptions(method);
 				formatOutput(tabDepth);
+				
+				//print name, exceptions, parameters, return type and modifiers
 				System.out.println("Method name: '" + method.getName()
-						+ "'\n\t-Parameter Types: " + params
-						+ "\n\t-Modifiers: "
-						+ Modifier.toString(method.getModifiers())
-						+ "\n\t-Return Types: " + method.getReturnType()
-						+ "\n\t-Exception Types: " + except);
+						+ "\n\t Exception Types: " + except		
+						+ "'\n\t Parameter Types: " + params
+						+ "\n\t Return Type: " + method.getReturnType()
+						+ "\n\t Modifiers: " + Modifier.toString(method.getModifiers()));
 			}
 		}   	
     }
@@ -126,35 +144,66 @@ public class Inspector {
 		if (objClass.getDeclaredFields().length >= 1) {
 			Field[] fields = objClass.getDeclaredFields();
 			for (int i = 0; i < fields.length; i++) {
+				try{
 				Field field = fields[i];
 				formatOutput(tabDepth);
 				//get access for private fields
 				field.setAccessible(true);
 				
-				//Unable to access size of array.
-				/*
-				if(field.getType().isArray()) {
-					System.out.println(field.getName());
-				    System.out.println("Field: '" + field.getName()
-					+ "'\n\t-Type: " + field.getType().getComponentType()
-					+ "\n\t-Modifier: "
-					+ Modifier.toString(field.getModifiers()));
-					System.out.println();
-					
-					int length = Array.getLength(field);
+				//Array handler
+				Object fieldObj = field.get(obj);
+				if(field.getType().isArray()){
+					//print name, type, modifier, current value
+					System.out.println("Field: '" + field.getName()
+					+ "'\n\t Type: " + field.getType().getComponentType()
+					+ "\n\t Modifier: "
+					+ Modifier.toString(field.getModifiers()));	
 
-					for (int j = 0; j < length; j ++) {
-				    	formatOutput(tabDepth+1);
-				    	Object arrayElement = Array.get(field, j);
-				        System.out.println("Element " + j + ": " + arrayElement);
+					Object[] objArray;
+
+					if(fieldObj instanceof Object[])
+						objArray =  (Object[]) fieldObj;
+
+					else{
+						int arrayLength = Array.getLength(fieldObj);
+						objArray = new Object[arrayLength];
+						for(int a = 0; a < arrayLength; a++){
+							objArray[a] = Array.get(fieldObj, a);
+						}
 					}
 
-				}
-				else *///{
-					System.out.println("Field: " + field.getName() 
-					+ "\n\t-Type: " + field.getType().getComponentType() 
-					+ "\n\t-Modifier: "	+ Modifier.toString(field.getModifiers()));
-				//}	
+					for(int j =0; j < objArray.length; j++){
+			            Object index = objArray[j];
+
+			            String indexString = null;
+			            if(index != null)
+			                if(index instanceof Class) {
+			                	Class<? extends Object> indexClass = index.getClass();
+			                    indexString = indexClass.getName() + " " + index.hashCode();
+			                }
+			                else
+			                	indexString =  index.toString();
+			            formatOutput(tabDepth+1);
+			            System.out.println("[" + j + "]: " + indexString);
+					}
+				}	
+				//Everything else handler
+				else {
+					Object value = field.get(obj);
+					//print name, type, modifier, current value
+					System.out.print("Field: " + field.getName() 
+					+ "\n\t Type: " + field.getType().getComponentType() 
+					+ "\n\t Modifier: "	+ Modifier.toString(field.getModifiers()));
+					if(value != null) {
+					System.out.println("\n\t Value: " + value.toString());
+				}	
+					else {
+						System.out.println("\n\t Value: null");
+					}
+			}}
+				catch(Exception e){
+	                e.printStackTrace();
+	            }
 			}
 		}
 		
@@ -169,6 +218,7 @@ public class Inspector {
 		}
 	}
 	
+	@SuppressWarnings("rawtypes")
 	private String getMethodExceptions(Method method) {
 		Class[] exceptions = method.getExceptionTypes();
 		String exceptionString = "";
@@ -181,16 +231,74 @@ public class Inspector {
 		return exceptionString;
 	}
 	
+	@SuppressWarnings("rawtypes")
 	private String getMethodParameters(Method method) {
 		Class[] parameters = method.getParameterTypes();
-		String params = "";
+		String paramString = "";
 		if (parameters.length == 0)
-			params = "nil";
+			paramString = "nil";
 		else
 			for (Class<?> parameter : parameters) {
-				params += parameter.getSimpleName() + " ";
+				paramString += parameter.getSimpleName() + " ";
 			}
-		return params;
+		return paramString;
 	}
 
+	private void recursiveInspector(Object obj, Class<?> objClass, ArrayList<Field> objectList, boolean recursive, int depth) {
+		int tabDepth = depth;
+		if (objectList.size() > 0)
+			formatOutput(tabDepth);
+			System.out.println(objClass.getSimpleName() + " field classes:");
+		int count = 0;
+		tabDepth++;
+		
+		count = objectList.size();
+		if(recursive) {
+		for(int i = 0; i < count; i++) {
+			Field field = (Field) objectList.get(i);
+			formatOutput(tabDepth);
+			System.out.println("Field: '" + field.getName() + "'");
+
+			try {
+				inspect(field.get(obj), recursive);
+			} catch (NullPointerException nullExp) {
+				formatOutput(tabDepth);
+				System.out.println(" uninstantiated field");
+			} catch (Exception exp) {
+				exp.printStackTrace();
+			}
+		}
+		}
+		else {
+			for(int i = 0; i < count; i++) {
+				Field field = (Field) objectList.get(i);
+				formatOutput(tabDepth);
+				System.out.println("Field: " + field.getName() + " " + field.hashCode());
+
+				try {
+					inspect(field.get(obj), recursive);
+				} catch (NullPointerException nullExp) {
+					formatOutput(tabDepth);
+					System.out.println("uninstantiated field");
+				} catch (Exception exp) {
+					exp.printStackTrace();
+				}
+			}
+		}
+		System.out.println();
+	}
+	
+	public static void disableWarning() {
+	    try {
+	        Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
+	        theUnsafe.setAccessible(true);
+	        Unsafe u = (Unsafe) theUnsafe.get(null);
+
+	        Class<?> cls = Class.forName("jdk.internal.module.IllegalAccessLogger");
+	        Field logger = cls.getDeclaredField("logger");
+	        u.putObjectVolatile(cls, u.staticFieldOffset(logger), null);
+	    } catch (Exception e) {
+	        // ignore
+	    }
+	}
 }
