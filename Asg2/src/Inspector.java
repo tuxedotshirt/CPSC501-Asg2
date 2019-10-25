@@ -116,7 +116,51 @@ public class Inspector {
     }
     
     private void fieldInspector(Object obj, Class<?> objClass, ArrayList<Field> objectList, int depth) {
-    	
+    	int tabDepth = depth;
+		System.out.println();
+		formatOutput(tabDepth);
+		System.out.println(objClass.getSimpleName() + " fields:");
+		System.out.println();
+		tabDepth++;
+		
+		if (objClass.getDeclaredFields().length >= 1) {
+			Field[] fields = objClass.getDeclaredFields();
+			for (int i = 0; i < fields.length; i++) {
+				Field field = fields[i];
+				formatOutput(tabDepth);
+				//get access for private fields
+				field.setAccessible(true);
+				
+				//Unable to access size of array.
+				/*
+				if(field.getType().isArray()) {
+					System.out.println(field.getName());
+				    System.out.println("Field: '" + field.getName()
+					+ "'\n\t-Type: " + field.getType().getComponentType()
+					+ "\n\t-Modifier: "
+					+ Modifier.toString(field.getModifiers()));
+					System.out.println();
+					
+					int length = Array.getLength(field);
+
+					for (int j = 0; j < length; j ++) {
+				    	formatOutput(tabDepth+1);
+				    	Object arrayElement = Array.get(field, j);
+				        System.out.println("Element " + j + ": " + arrayElement);
+					}
+
+				}
+				else *///{
+					System.out.println("Field: " + field.getName() 
+					+ "\n\t-Type: " + field.getType().getComponentType() 
+					+ "\n\t-Modifier: "	+ Modifier.toString(field.getModifiers()));
+				//}	
+			}
+		}
+		
+		System.out.println();
+		if (objClass.getSuperclass() != null)
+			fieldInspector(obj, objClass.getSuperclass(), objectList, depth);    	
     }
     
 	private void formatOutput(int depth) {
