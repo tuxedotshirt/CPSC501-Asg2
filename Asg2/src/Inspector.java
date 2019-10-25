@@ -47,7 +47,21 @@ public class Inspector {
     }
     
     private void interfaceInspector(Object obj, Class<?> objClass, int depth) {
-    	
+    	int tabDepth = depth;
+		System.out.println();
+		formatOutput(tabDepth);
+		System.out.println("Interfaces: ");
+		tabDepth++;
+		Class[] interfaces = objClass.getInterfaces();
+		if (interfaces.length > 0) {
+			for (int i = 0; i < interfaces.length; i++) {
+				System.out.println();
+				formatOutput(tabDepth+1);
+				System.out.println("Interface: " + interfaces[i].getName());
+				methodInspector(obj, interfaces[i], tabDepth+2);
+				constructorInspector(obj, interfaces[i], tabDepth+2);
+			}
+		}   	
     }
 
     private void constructorInspector(Object obj, Class<?> objClass, int depth) {
