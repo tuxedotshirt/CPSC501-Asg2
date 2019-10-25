@@ -1,3 +1,4 @@
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -65,7 +66,30 @@ public class Inspector {
     }
 
     private void constructorInspector(Object obj, Class<?> objClass, int depth) {
-    	
+    	int tabDepth = depth;
+		System.out.println();
+		formatOutput(tabDepth);
+		System.out.println(objClass.getSimpleName() + " constructor methods: ");
+		Constructor[] constructors = objClass.getConstructors();
+		if (constructors.length > 0) {
+			for (int i = 0; i < constructors.length; i++) {
+				Constructor<?> constructorMethod = constructors[i];
+				Class[] parameters = constructors[i].getParameterTypes();
+				String paramString = "";
+				if (parameters.length == 0)
+					paramString = "nil";
+				else
+					for(int j = 0; j < parameters.length; j++) {
+						paramString += parameters[j].getSimpleName() + " ";
+					}
+				System.out.println();
+				formatOutput(tabDepth+1);
+				
+				System.out.println("Constructor: " + constructorMethod.getName()
+						+ "\n\t-Parameters: " + paramString 
+						+ "\n\t-Modifiers: " + Modifier.toString(constructorMethod.getModifiers()));
+			}
+		}     	
     }
     
     private void methodInspector(Object obj, Class<?> objClass, int depth) {
