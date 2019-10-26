@@ -46,7 +46,7 @@ public class Inspector {
 		fieldInspector(obj, objClass, objectList, tabDepth+1);
 
 		//6
-		recursiveInspector(obj, objClass, objectList, recursive, depth+1);
+		fieldClassInspector(obj, objClass, objectList, recursive, depth+1);
     }
 
     private void superclassInspector(Object obj, Class<?> objClass, ArrayList<Field> objectList, int depth) {
@@ -243,50 +243,6 @@ public class Inspector {
 			}
 		return paramString;
 	}
-
-	private void recursiveInspector(Object obj, Class<?> objClass, ArrayList<Field> objectList, boolean recursive, int depth) {
-		int tabDepth = depth;
-		if (objectList.size() > 0)
-			formatOutput(tabDepth);
-			System.out.println(objClass.getSimpleName() + " field classes:");
-		int count = 0;
-		tabDepth++;
-		
-		count = objectList.size();
-		if(recursive) {
-		for(int i = 0; i < count; i++) {
-			Field field = (Field) objectList.get(i);
-			formatOutput(tabDepth);
-			System.out.println("Field: '" + field.getName() + "'");
-
-			try {
-				inspect(field.get(obj), recursive);
-			} catch (NullPointerException nullExp) {
-				formatOutput(tabDepth);
-				System.out.println(" uninstantiated field");
-			} catch (Exception exp) {
-				exp.printStackTrace();
-			}
-		}
-		}
-		else {
-			for(int i = 0; i < count; i++) {
-				Field field = (Field) objectList.get(i);
-				formatOutput(tabDepth);
-				System.out.println("Field: " + field.getName() + " " + field.hashCode());
-
-				try {
-					inspect(field.get(obj), recursive);
-				} catch (NullPointerException nullExp) {
-					formatOutput(tabDepth);
-					System.out.println("uninstantiated field");
-				} catch (Exception exp) {
-					exp.printStackTrace();
-				}
-			}
-		}
-		System.out.println();
-	}
 	
 	public static void disableWarning() {
 	    try {
@@ -300,5 +256,40 @@ public class Inspector {
 	    } catch (Exception e) {
 	        // ignore
 	    }
+	}
+
+	private void fieldClassInspector(Object obj, Class<?> objClass, ArrayList<Field> objectList, Boolean recurse, int depth) {
+    	int tabDepth = depth;
+		System.out.println();
+		formatOutput(tabDepth);
+		System.out.println(objClass.getSimpleName() + " fields:");
+		System.out.println();
+		tabDepth++;
+		
+		if (objClass.getDeclaredFields().length >= 1) {
+			Field[] fields = objClass.getDeclaredFields();
+			
+			for (int i = 0; i < fields.length; i++) {
+				fields[i].setAccessible(true);
+				Class<?> fieldType = fields[i].getType();
+
+				//if not primitive, then it must be a class
+				if(!fieldType.isPrimitive()){
+                    System.out.println("Field: " + fields[i].getName() + " Object");
+
+                    try {
+						if(fields[i].get(obj) != null){
+						    	inspect(fields[i].get(obj), recurse);
+						}
+						else { 
+							System.out.println(" object is null or uninstantiated.");
+						}
+					} catch (IllegalArgumentException | IllegalAccessException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+                }
+			}
+		}	
 	}
 }
