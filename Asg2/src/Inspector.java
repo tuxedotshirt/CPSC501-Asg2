@@ -285,7 +285,6 @@ public class Inspector {
 							System.out.println(" object is null or uninstantiated.");
 						}
 					} catch (IllegalArgumentException | IllegalAccessException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
                 }
